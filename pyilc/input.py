@@ -522,6 +522,25 @@ class ILCInfo(object):
             if p['use_numba'].lower() in ['false','no','f','n']:
                 self.use_numba = False
 
+        # Backend for constrained-ILC weight linear algebra (per-pixel solves).
+        # One of: 'auto', 'numpy', 'numba', 'jax', 'cupy'.
+        # Default 'auto' prefers a CUDA GPU via JAX when available, else numba,
+        # else pure numpy. Override with ilc_backend / use_gpu in the YAML or
+        # the PYILC_BACKEND environment variable.
+        self.ilc_backend = 'auto'
+        if 'ilc_backend' in p.keys():
+            assert type(p['ilc_backend']) is str
+            self.ilc_backend = p['ilc_backend'].strip().lower()
+            assert self.ilc_backend in [
+                'auto', 'numpy', 'numba', 'jax', 'cupy'
+            ], "ilc_backend must be one of auto/numpy/numba/jax/cupy"
+        if 'use_gpu' in p.keys():
+            assert type(p['use_gpu']) is str
+            if p['use_gpu'].lower() in ['true', 'yes', 't', 'y']:
+                self.ilc_backend = 'auto'
+            elif p['use_gpu'].lower() in ['false', 'no', 'f', 'n']:
+                self.ilc_backend = 'numba' if self.use_numba else 'numpy'
+
         # I have started saving this as hdf5 files but the old fits format functionality still exists.
         assert 'save_as' in p.keys(), "You need to specify whether to save as fits files or hdf5 files. hdf5 files are recommended, but fits files is available for back-compatibility."
         assert p['save_as'] in ['fits','hdf5']

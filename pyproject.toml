@@ -12,8 +12,15 @@ dependencies = [
     "numpy",
     "matplotlib",
     "healpy",
-    "pixell"
+    "pixell",
+    "numba",
+    "h5py",
+    "astropy",
 ]
+
+[project.optional-dependencies]
+gpu = ["jax[cuda12]", "cupy-cuda12x"]
+test = ["pytest"]
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = [
