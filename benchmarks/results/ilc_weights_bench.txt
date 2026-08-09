@@ -1,25 +1,25 @@
 pyilc ILC weight backend benchmark
 
 == nside64_F6_C1 (npix=49152, F=6, C=1) ==
-  numba: best=0.0672s  speedup_vs_ref=1.0  max|dw|=0.0
-  numpy: best=0.0213s  speedup_vs_ref=3.161668500782782  max|dw|=0.0
-  jax: best=0.0028s  speedup_vs_ref=24.33222006691732  max|dw|=2.7755575615628914e-16
-  cupy: best=0.0021s  speedup_vs_ref=31.31775058365971  max|dw|=2.7755575615628914e-16
+  numba: best=0.0518s  speedup_vs_ref=1.0  max|dw|=0.0
+  numpy: best=0.0212s  speedup_vs_ref=2.4453907849443146  max|dw|=0.0
+  jax: best=0.0034s  speedup_vs_ref=15.270257018188447  max|dw|=2.7755575615628914e-16
+  cupy: best=0.0022s  speedup_vs_ref=23.87057952300598  max|dw|=2.7755575615628914e-16
 
 == nside128_F6_C2 (npix=196608, F=6, C=2) ==
-  numba: best=0.3307s  speedup_vs_ref=1.0  max|dw|=0.0
-  numpy: best=0.1195s  speedup_vs_ref=2.7674525173770483  max|dw|=0.0
-  jax: best=0.0083s  speedup_vs_ref=39.72520142061156  max|dw|=6.106226635438361e-16
-  cupy: best=0.0093s  speedup_vs_ref=35.634855009246806  max|dw|=6.661338147750939e-16
+  numba: best=0.2666s  speedup_vs_ref=1.0  max|dw|=0.0
+  numpy: best=0.1144s  speedup_vs_ref=2.331017517709882  max|dw|=0.0
+  jax: best=0.0084s  speedup_vs_ref=31.606991990991308  max|dw|=6.106226635438361e-16
+  cupy: best=0.0095s  speedup_vs_ref=28.192796671434074  max|dw|=6.661338147750939e-16
 
 == nside256_F9_C1 (npix=786432, F=9, C=1) ==
-  numba: best=0.9697s  speedup_vs_ref=1.0  max|dw|=0.0
-  numpy: best=0.5753s  speedup_vs_ref=1.6855660866277062  max|dw|=0.0
-  jax: best=0.0634s  speedup_vs_ref=15.296942694571612  max|dw|=1.942890293094024e-16
-  cupy: best=0.0600s  speedup_vs_ref=16.160787751040303  max|dw|=1.6653345369377348e-16
+  numba: best=0.9241s  speedup_vs_ref=1.0  max|dw|=0.0
+  numpy: best=0.5788s  speedup_vs_ref=1.596543051987939  max|dw|=0.0
+  jax: best=0.0633s  speedup_vs_ref=14.597874214732105  max|dw|=1.942890293094024e-16
+  cupy: best=0.0600s  speedup_vs_ref=15.392907557107876  max|dw|=1.6653345369377348e-16
 
 == nside512_F9_C2 (npix=3145728, F=9, C=2) ==
-  numba: best=5.8906s  speedup_vs_ref=1.0  max|dw|=0.0
-  numpy: best=3.0651s  speedup_vs_ref=1.9218186949914315  max|dw|=0.0
-  jax: best=1.0904s  speedup_vs_ref=5.402401955202552  max|dw|=3.0531133177191805e-16
-  cupy: best=0.5909s  speedup_vs_ref=9.969583876347356  max|dw|=3.0531133177191805e-16
+  numba: best=6.4247s  speedup_vs_ref=1.0  max|dw|=0.0
+  numpy: best=2.9484s  speedup_vs_ref=2.1790114137191936  max|dw|=0.0
+  jax: best=1.1113s  speedup_vs_ref=5.781279878077638  max|dw|=3.0531133177191805e-16
+  cupy: best=0.5906s  speedup_vs_ref=10.878400846198762  max|dw|=3.0531133177191805e-16

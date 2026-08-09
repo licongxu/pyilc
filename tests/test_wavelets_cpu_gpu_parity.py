@@ -35,16 +35,7 @@ def test_end_to_end_weight_pipeline_cpu_gpu():
     """Simulate the stack assembled inside weights_from_covmat_at_scale_j."""
     n_pix, n_freq, n_comp = 2048, 6, 2
     rng = np.random.default_rng(42)
-    # Fake cov maps as produced by compute_covariance_at_scale_j: upper-triangle list
-    cov_maps = []
-    full = np.zeros((n_freq, n_freq, n_pix))
-    for a in range(n_freq):
-        for b in range(a, n_freq):
-            m = rng.standard_normal(n_pix)
-            full[a, b] = m
-            full[b, a] = m
-            cov_maps.append(m)
-    # Make SPD by C = X X^T + n I using the random full as X proxy at each pixel
+    # Make SPD by C = X X^T + n I at each pixel
     X = rng.standard_normal((n_pix, n_freq, n_freq))
     cov_pff = X @ np.transpose(X, (0, 2, 1)) + n_freq * np.eye(n_freq)
     A = rng.standard_normal((n_freq, n_comp))
@@ -63,3 +54,33 @@ def test_end_to_end_weight_pipeline_cpu_gpu():
     resp = w_cpu @ A
     assert np.max(np.abs(resp[:, 0] - 1.0)) < 1e-8
     assert np.max(np.abs(resp[:, 1:])) < 1e-8
+
+
+def test_historical_cov_transpose_layout_matches_numpy_on_gpu():
+    """
+    Mirror the exact covariance layout used in wavelets.py:
+
+        covmat_temp_sliced shape (F, F, P)
+        covmat_temp_transpose = np.transpose(..., (2, 1, 0))  # (P, F, F)
+
+    This is the layout actually passed into compute_ilc_weights_from_cov from
+    the shipped NILC weight path.
+    """
+    n_pix, n_freq, n_comp = 4096, 5, 2
+    rng = np.random.default_rng(99)
+    X = rng.standard_normal((n_pix, n_freq, n_freq))
+    cov_pff = X @ np.transpose(X, (0, 2, 1)) + n_freq * np.eye(n_freq)
+    # Build (F, F, P) then historical (2,1,0) transpose
+    cov_ffp = np.transpose(cov_pff, (1, 2, 0))
+    cov_hist = np.transpose(cov_ffp, (2, 1, 0))
+    A = rng.standard_normal((n_freq, n_comp))
+    A[:, 0] = np.abs(A[:, 0]) + 0.4
+
+    w_cpu, _ = compute_ilc_weights_from_cov(cov_hist, A, backend="numpy")
+    w_auto, used = compute_ilc_weights_from_cov(cov_hist, A, backend="auto")
+    np.testing.assert_allclose(w_auto, w_cpu, rtol=1e-9, atol=1e-9)
+    resp = w_auto @ A
+    assert np.max(np.abs(resp[:, 0] - 1.0)) < 1e-8
+    assert np.max(np.abs(resp[:, 1:])) < 1e-8
+    # On GPU hosts auto should be jax; on CPU-only hosts numba/numpy is fine
+    assert used in {"jax", "cupy", "numba", "numpy"}
