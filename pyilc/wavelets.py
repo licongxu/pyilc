@@ -76,6 +76,7 @@ fontProperties = {'family':'sans-serif',
 import matplotlib.pyplot as plt
 from .input import ILCInfo
 from .fg import get_mix, get_mix_bandpassed
+from .ilc_linalg import compute_ilc_weights_from_cov, env_backend_override
 import time
 """
 this module constructs the Wavelets class, which contains the
@@ -660,66 +661,36 @@ class scale_info(object):
                         covmat_temp_sliced[b,a] = covmat_temp_sliced[a,b].flatten() #symmetrize
                     count+=1
         print("we have covmat",flush=True)
-        print('using numba?',info.use_numba,flush=True)
-        covmat_temp_transpose = np.transpose(covmat_temp_sliced,(2,1,0))
+        # covmat_temp_sliced is (F, F, P); ILC linalg expects (P, F, F).
+        # Keep the historical transpose order (2,1,0) for bit-level continuity with the
+        # pre-GPU code path (C is symmetric after a/b fill, so this matches (2,0,1)).
+        covmat_temp_transpose = np.transpose(covmat_temp_sliced, (2, 1, 0))
         del(covmat_temp_sliced)
 
-        tmp1 = np.zeros((N_comps,self.N_freqs_to_use[j],len_unmasked_pix))
-        t1=time.time()
-        if not info.use_numba:
-            tmp1 = np.linalg.solve(covmat_temp_transpose,A_mix[None,:,:]) 
-        else:
-            print("in numba yay")
-            tmp1 = my_numba_solver(covmat_temp_transpose,A_mix[:,:]) 
-        if info.print_timing:
-            print("got tmp1 in ",time.time()-t1,covmat_temp_transpose.shape,A_mix.shape,flush=True)
-        tmp1 = np.transpose(tmp1)
+        # Resolve compute backend: GPU (jax/cupy) when requested/available, else numba/numpy.
+        # Priority: PYILC_BACKEND env > info.ilc_backend (YAML) > auto.
+        backend = env_backend_override()
+        if backend is None:
+            backend = getattr(info, "ilc_backend", None) or "auto"
+        print("ILC weight backend:", backend, "(use_numba=%s)" % info.use_numba, flush=True)
 
-        ### construct the matrix Q_{alpha beta} defined in Eq. 30 of McCarthy & Hill 2023 for each pixel at this wavelet scale and evaluate Eq. 29 to get weights ###
-        t1=time.time()
-        if not info.use_numba:
-            Qab_pix = np.einsum('ajp,bj->abp', tmp1, np.transpose(A_mix))
-        else:
-            Qab_pix = np.transpose(numba_matmul(np.transpose(tmp1,(2,0,1)),A_mix),(1,2,0))
-        if info.print_timing:
-            print("got Qab in",time.time()-t1,flush=True)
-
-        t1=time.time()
-        tempvec = np.zeros((N_comps,len_unmasked_pix))
-        # treat the no-deprojection case separately, since QSa_temp is empty in this case
-        if (N_comps == 1):
-            tempvec[0] = np.ones(len_unmasked_pix)
-        else:
-            for a in range(N_comps):
-                QSa_temp = np.delete(np.delete(Qab_pix, a, 0), 0, 1) #remove the a^th row and zero^th column
-                if not info.use_numba:
-                    tempvec[a] = (-1.0)**float(a) * np.linalg.det(np.transpose(QSa_temp,(2,0,1)))
-                else:
-                     tempvec[a] = (-1.0)**float(a) * numba_det(np.transpose(QSa_temp,(2,0,1)))
-        if info.print_timing:
-            print("got tempvec in",time.time()-t1,flush=True)
-
-        t1=time.time()
-        tmp2 = np.einsum('ia,ap->ip', A_mix, tempvec) #todo: paralelize with numba? this is not very long though
-        if info.print_timing:
-            print("got tmp2 in",time.time()-t1,flush=True)
-        t1=time.time()
-        if not info.use_numba:
-            tmp3 =  np.transpose(np.linalg.solve(covmat_temp_transpose,np.transpose(tmp2)))
-        else:
-            tmp3 =  np.transpose(my_numba_solver_parallelb(covmat_temp_transpose,np.transpose(tmp2)))
+        t1 = time.time()
+        ### construct the matrix Q_{alpha beta} defined in Eq. 30 of McCarthy & Hill 2023
+        ### for each pixel at this wavelet scale and evaluate Eq. 29 to get weights ###
+        weights_sliced, backend_used = compute_ilc_weights_from_cov(
+            covmat_temp_transpose, A_mix, backend=backend
+        )
         del(covmat_temp_transpose)
-        if info.print_timing: 
-            print("got tmp3 in",time.time()-t1,flush=True)
-
-
-        t1=time.time()
-        if not info.use_numba:
-             weights_sliced = 1.0/np.linalg.det(np.transpose(Qab_pix,(2,0,1)))[:,None]*np.transpose(tmp3) 
-        else:
-            weights_sliced = 1.0/numba_det(np.transpose(Qab_pix,(2,0,1)))[:,None]*np.transpose(tmp3) 
         if info.print_timing:
-             print("got weights in",time.time()-t1,flush=True)
+            print(
+                "got weights in",
+                time.time() - t1,
+                "backend=",
+                backend_used,
+                "shape=",
+                weights_sliced.shape,
+                flush=True,
+            )
 
         t1=time.time()
         # response verification
